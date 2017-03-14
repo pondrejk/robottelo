@@ -245,6 +245,8 @@ class VirtualMachine(object):
         """
         self.run('yum install -y katello-agent')
         result = self.run('rpm -q katello-agent')
+        #fixme TODO remove this line
+        self.run("service goferd start")
         if result.return_code != 0:
             raise VirtualMachineError('Failed to install katello-agent')
         gofer_check = self.run('service goferd status')
