@@ -430,11 +430,11 @@ class RemoteExecutionTestCase(UITestCase):
                 )
                 # get job invocation id from the current url
                 invocation_id = self.browser.current_url.rsplit('/', 1)[-1]
-                JobInvocation.get_output({
-                     'id': invocation_id,
-                     'host': client.hostname
-                })
-                self.assertTrue(status)
+                self.assertTrue(status, 'host output: {0}'.format(
+                    ' '.join(JobInvocation.get_output({
+                         'id': invocation_id,
+                         'host': client.hostname
+                     }))))
 
     @tier3
     def test_positive_run_custom_job_template(self):
