@@ -16,6 +16,7 @@
 """
 from datetime import datetime, timedelta
 from nailgun import entities
+from robottelo import ssh
 from robottelo.constants import OS_TEMPLATE_DATA_FILE, DISTRO_RHEL7
 from robottelo.datafactory import (
     gen_string,
@@ -672,6 +673,226 @@ class RemoteExecutionTestCase(UITestCase):
                             )
                         )
                     )
+
+    @tier2
+    def test_positive_run_job_effective_user(self):
+        """Run default job template as effective user against a single host
+
+        :id: e655d4fe-0ddf-47a4-8ce1-ff56175869af
+
+        :Setup: Use pre-defined job template.
+
+        :Steps:
+
+            1. Navigate to an individual host and click Run Job
+            2. Select the job and appropriate template
+            3. Select "Schedule Future Job"
+            4. Click "Display advanced fields"
+            5. Specify "Effective user"
+            6. Click submit
+
+        :expectedresults:
+
+            1. Verify the job was successfully ran
+            2. Verify the job was ran by the selected user
+
+        """
+        with VirtualMachine(distro=DISTRO_RHEL7) as client:
+            client.install_katello_ca()
+            client.register_contenthost(self.organization.label, lce='Library')
+            add_remote_execution_ssh_key(client.ip_addr)
+            Host.update({
+                u'name': client.hostname,
+                u'subnet-id': self.new_sub['id'],
+            })
+            with Session(self.browser) as session:
+                set_context(session, org=self.organization.name)
+                self.hosts.click(self.hosts.search(client.hostname))
+                # create a file as new user
+                username = "tester"
+                filename = "testfile"
+                user_status = self.job.run(
+                    job_category='Commands',
+                    job_template='Run Command - SSH Default',
+                    options_list=[{
+                        'name': 'command',
+                        'value': 'useradd {0}'.format(username)
+                        }]
+                )
+                self.assertTrue(user_status)
+                #need to navigate to host again?
+                status = self.job.run(
+                    job_category='Commands',
+                    job_template='Run Command - SSH Default',
+                    options_list=[
+                        {'name': 'command', 'value': 'ls'},
+                        {'name': 'Effective user', 'value': username}
+                        ]
+                )
+                self.assertTrue(status)
+
+            # check the file owner
+            result = ssh.command(
+                    '''stat -c '%U' /home/{0}/{1}'''.format(
+                        username, filename),
+                    hostname=client.hostname
+            )
+            # assert the file is owned by the effective user
+            self.assertEqual(username, result.stdout[0])
+
+    @tier3
+    def test_positive_install_multiple_packages_with_a_job(self):
+        """Run job to install several packages on host
+
+        :id: 32a8a6e2-514c-44af-a960-0e179e08b128
+
+        :Steps:
+
+            1. Prepare fake repository with packages to be installed
+            2. Navigate to an individual host and click Run Job
+            3. Select the job and appropriate template
+            4. Specify action install and submit package names
+            5. Click submit
+
+        :expectedresults:
+
+            1. Verify the job was successfully ran
+            2. Verify the packages are correctly installed on the host
+
+        """
+
+        with VirtualMachine(distro=DISTRO_RHEL7) as client:
+            client.install_katello_ca()
+            client.register_contenthost(self.organization.label, lce='Library')
+            add_remote_execution_ssh_key(client.ip_addr)
+            Host.update({
+                u'name': client.hostname,
+                u'subnet-id': self.new_sub['id'],
+            })
+            with Session(self.browser) as session:
+                set_context(session, org=self.organization.name)
+                #enable and sync the fake repo?
+                self.hosts.click(self.hosts.search(client.hostname))
+                status = self.job.run(
+                    job_category='Packages',
+                    job_template='Package Action - SSH Default',
+                    options_list=[
+                        {'name': 'action', 'value': 'install' },
+                        {'name': 'package', 'value': 'cow dog lion'}
+                        ]
+                )
+                self.assertTrue(status)
+
+            result = ssh.command(
+                    "rpm -q {0}".format("cow dog lion"),
+                    hostname=client.hostname
+                    )
+            self.assertEqual(result.return_code, 0)
+
+    @stubbed
+    @tier3
+    def test_positive_run_recurring_job_with_max_iterations(self):
+        """Run default job template multiple times with max iteration
+
+        :id: 3662e09e-9b4d-4e3e-a691-a2a1
+
+        :Steps:
+
+            1. Navigate to an individual host and click Run Job
+            2. Select the job and appropriate template
+            3. Click "Display advanced fields"
+            4. Select "Schedule recurring execution"
+            5. Use cronline to specify repetition, set "Repeat N times"
+            6. Click submit
+
+        :expectedresults:
+
+            1. Verify the job was run the specified number of times
+
+        """
+        with VirtualMachine(distro=DISTRO_RHEL7) as client:
+            client.install_katello_ca()
+            client.register_contenthost(self.organization.label, lce='Library')
+            add_remote_execution_ssh_key(client.ip_addr)
+            Host.update({
+                u'name': client.hostname,
+                u'subnet-id': self.new_sub['id'],
+            })
+            with Session(self.browser) as session:
+                set_context(session, org=self.organization.name)
+                self.hosts.click(self.hosts.search(client.hostname))
+                status = self.job.run(
+                    job_category='Commands',
+                    job_template='Run Command - SSH Default',
+                    options_list=[{'name': 'command', 'value': 'ls'}],
+                    schedule='recurring',
+                    schedule_options=[
+                        {'name': 'repeats', 'value': 'cronline'},
+                        {'name': 'cron_line', 'value': '* * * * *'},
+                        {'name': 'repeats_n_times', 'value': 2},
+                    ],
+                    result='queued'
+                )
+                self.assertTrue(status)
+
+        """
+        # cli version
+        sleep(150)
+        rec_logic = RecurringLogic.info({
+                'id': invocation_command['recurring-logic-id']})
+        self.assertEqual(rec_logic['state'], u'finished')
+        self.assertEqual(rec_logic['iteration'], u'2')
+        """
+        #TODO navigate to recurring logic page and assert
+        # State = finished, Current iteration = 2
+
+
+    @stubbed
+    @tier3
+    def test_positive_run_job_multiple_hosts_time_span(self):
+        """Run job against multiple hosts with time span setting
+
+        :id: be2f8a73-a598-4447-9ac9-63c881f63950
+
+        :Steps:
+
+            1. Navigate to the hosts page and select at least two hosts
+            2. Click the "Select Action"
+            3. Select the job and appropriate template
+            4. Click "Display advanced fields" and set "Time span"
+            5. Run the job
+
+        :expectedresults:
+
+            1. Verify the tasks were successfully distributed
+                across the specified time sequence
+        """
+        # currently it is not possible to get subtasks from
+        # a task other than via UI
+
+    @stubbed
+    @tier3
+    def test_positive_run_job_multiple_hosts_concurrency(self):
+        """Run job against multiple hosts with concurrency-level
+
+        :id: 3edac3dc-8229-4ee0-bd0c-82aa1544966c
+
+        :Steps:
+
+            1. Navigate to the hosts page and select at least two hosts
+            2. Click the "Select Action"
+            3. Select the job and appropriate template
+            4. Click "Display advanced fields" and set "Concurrency level"
+            5. Run the job
+
+        :expectedresults:
+
+            1. Verify the number of running concurrent tasks does comply
+                with the concurrency-level setting
+
+        """
+        # currently it is not possible to get subtasks from
+        # a task other than via UI
 
     @stubbed()
     @tier3

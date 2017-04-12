@@ -223,6 +223,8 @@ locators = LocatorDict({
         By.XPATH,
         ("//div[contains(@id, 'input_type_selector')]/a"
          "/span[contains(@class, 'arrow')]")),
+    "job_invocation.schedule.cron_line": (
+        By.XPATH, "//input[@id='triggering_cronline']"),
     "job_invocation.schedule.repeats_n_times": (
         By.XPATH, "//input[@id='triggering_max_iteration']"),
     "job_invocation.title": (
