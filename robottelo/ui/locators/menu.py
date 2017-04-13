@@ -40,10 +40,18 @@ menu_locators = LocatorDict({
     "menu.audits": (
         By.XPATH,
         (MENU_CONTAINER_PATH + "//a[@id='menu_item_audits']")),
-
     "menu.jobs": (
         By.XPATH,
         (MENU_CONTAINER_PATH + "//a[@id='menu_item_job_invocations']")),
+    "menu.config_reports": (
+        By.XPATH,
+        (MENU_CONTAINER_PATH + "//a[@id='menu_item_reports']")),
+    "menu.tasks": (
+        By.XPATH,
+        (MENU_CONTAINER_PATH + "//a[@id='menu_item_tasks']")),
+    "menu.recurring_logics": (
+        By.XPATH,
+        (MENU_CONTAINER_PATH + "//a[@id='menu_item_recurring_logics']")),
 
     # Content Menu
     "menu.content": (

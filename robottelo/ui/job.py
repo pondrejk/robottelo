@@ -51,6 +51,8 @@ class Job(Base):
         :return: Returns whether job is finished with expected state or not
         """
         self.click(common_locators['run_job'])
+        # show advanced fields
+        self.click(locators['job_invocation.advanced_fields'])
         if job_category:
             self.assign_value(
                 locators['job_invocation.job_category'], job_category)

@@ -17,7 +17,12 @@
 from datetime import datetime, timedelta
 from nailgun import entities
 from robottelo import ssh
-from robottelo.constants import OS_TEMPLATE_DATA_FILE, DISTRO_RHEL7
+from time import sleep
+from robottelo.constants import (
+    DISTRO_RHEL7,
+    FAKE_2_YUM_REPO,
+    OS_TEMPLATE_DATA_FILE,
+)
 from robottelo.datafactory import (
     gen_string,
     generate_strings_list,
@@ -701,16 +706,18 @@ class RemoteExecutionTestCase(UITestCase):
             client.install_katello_ca()
             client.register_contenthost(self.organization.label, lce='Library')
             add_remote_execution_ssh_key(client.ip_addr)
+            """
             Host.update({
                 u'name': client.hostname,
                 u'subnet-id': self.new_sub['id'],
             })
+            """
             with Session(self.browser) as session:
                 set_context(session, org=self.organization.name)
                 self.hosts.click(self.hosts.search(client.hostname))
-                # create a file as new user
-                username = "tester"
-                filename = "testfile"
+                # create a user on client via remote job
+                username = gen_string('alpha')
+                filename = gen_string('alpha')
                 user_status = self.job.run(
                     job_category='Commands',
                     job_template='Run Command - SSH Default',
@@ -720,13 +727,14 @@ class RemoteExecutionTestCase(UITestCase):
                         }]
                 )
                 self.assertTrue(user_status)
-                #need to navigate to host again?
+                self.hosts.click(self.hosts.search(client.hostname))
+                # create a file as the new user
                 status = self.job.run(
                     job_category='Commands',
                     job_template='Run Command - SSH Default',
                     options_list=[
                         {'name': 'command', 'value': 'ls'},
-                        {'name': 'Effective user', 'value': username}
+                        {'name': 'effective_user', 'value': username}
                         ]
                 )
                 self.assertTrue(status)
@@ -770,26 +778,32 @@ class RemoteExecutionTestCase(UITestCase):
                 u'subnet-id': self.new_sub['id'],
             })
             with Session(self.browser) as session:
+                packages = ["cow", "dog", "lion"]
+                repo = entities.Repository(
+                    url=FAKE_2_YUM_REPO,
+                    content_type='yum',
+                    product=self.product,
+                ).create()
+                repo.sync()
                 set_context(session, org=self.organization.name)
-                #enable and sync the fake repo?
                 self.hosts.click(self.hosts.search(client.hostname))
                 status = self.job.run(
                     job_category='Packages',
                     job_template='Package Action - SSH Default',
                     options_list=[
-                        {'name': 'action', 'value': 'install' },
-                        {'name': 'package', 'value': 'cow dog lion'}
+                        {'name': 'action', 'value': 'install'},
+                        {'name': 'package', 'value': '{0}'.format(
+                            " ".join(packages))}
                         ]
                 )
                 self.assertTrue(status)
 
             result = ssh.command(
-                    "rpm -q {0}".format("cow dog lion"),
+                    "rpm -q {0}".format(" ".join(packages)),
                     hostname=client.hostname
                     )
             self.assertEqual(result.return_code, 0)
 
-    @stubbed
     @tier3
     def test_positive_run_recurring_job_with_max_iterations(self):
         """Run default job template multiple times with max iteration
@@ -819,6 +833,7 @@ class RemoteExecutionTestCase(UITestCase):
                 u'subnet-id': self.new_sub['id'],
             })
             with Session(self.browser) as session:
+                max_iters = 2
                 set_context(session, org=self.organization.name)
                 self.hosts.click(self.hosts.search(client.hostname))
                 status = self.job.run(
@@ -829,11 +844,18 @@ class RemoteExecutionTestCase(UITestCase):
                     schedule_options=[
                         {'name': 'repeats', 'value': 'cronline'},
                         {'name': 'cron_line', 'value': '* * * * *'},
-                        {'name': 'repeats_n_times', 'value': 2},
+                        {'name': 'repeats_n_times', 'value': max_iters},
                     ],
                     result='queued'
                 )
                 self.assertTrue(status)
+
+                sleep(150)
+
+                #zrob check cez api
+                rec_logic = RecurringLogic.info(job_id)
+                self.assertEqual(rec_logic[0], u'finished')
+                self.assertEqual(rec_logic[1], max_iters)
 
         """
         # cli version
@@ -846,6 +868,51 @@ class RemoteExecutionTestCase(UITestCase):
         #TODO navigate to recurring logic page and assert
         # State = finished, Current iteration = 2
 
+    @tier3
+    def test_positive_run_job_multiple_hosts_concurrency(self):
+        """Run job against multiple hosts with concurrency-level
+
+        :id: 3edac3dc-8229-4ee0-bd0c-82aa1544966c
+
+        :Steps:
+
+            1. Navigate to the hosts page and select at least two hosts
+            2. Click the "Select Action"
+            3. Select the job and appropriate template
+            4. Click "Display advanced fields" and set "Concurrency level"
+            5. Run the job
+
+        :expectedresults:
+
+            1. Verify the number of running concurrent tasks does comply
+                with the concurrency-level setting
+
+        """
+        with VirtualMachine(distro=DISTRO_RHEL7) as client:
+            with VirtualMachine(distro=DISTRO_RHEL7) as client2:
+                for vm in client, client2:
+                    vm.install_katello_ca()
+                    vm.register_contenthost(
+                        self.organization.label, lce='Library')
+                    add_remote_execution_ssh_key(vm.ip_addr)
+                    Host.update({
+                        u'name': vm.hostname,
+                        u'subnet-id': self.new_sub['id'],
+                    })
+                with Session(self.browser) as session:
+                    set_context(session, org=self.organization.name)
+                    self.hosts.navigate_to_entity()
+                    self.hosts.update_host_bulkactions(
+                        [client.hostname, client2.hostname],
+                        action='Run Job',
+                        parameters_list=[
+                            {'command': 'ls'},
+                            {'concurrency_level', '2'},
+                        ],
+                    )
+                    strategy, value = locators['job_invocation.status']
+                    self.job.wait_until_element(
+                        (strategy, value % 'succeeded'), 240)
 
     @stubbed
     @tier3
@@ -867,34 +934,33 @@ class RemoteExecutionTestCase(UITestCase):
             1. Verify the tasks were successfully distributed
                 across the specified time sequence
         """
-        # currently it is not possible to get subtasks from
-        # a task other than via UI
+        with VirtualMachine(distro=DISTRO_RHEL7) as client:
+            with VirtualMachine(distro=DISTRO_RHEL7) as client2:
+                for vm in client, client2:
+                    vm.install_katello_ca()
+                    vm.register_contenthost(
+                        self.organization.label, lce='Library')
+                    add_remote_execution_ssh_key(vm.ip_addr)
+                    Host.update({
+                        u'name': vm.hostname,
+                        u'subnet-id': self.new_sub['id'],
+                    })
+                with Session(self.browser) as session:
+                    set_context(session, org=self.organization.name)
+                    self.hosts.navigate_to_entity()
+                    self.hosts.update_host_bulkactions(
+                        [client.hostname, client2.hostname],
+                        action='Run Job',
+                        parameters_list=[
+                            {'command': 'ls'},
+                            {'time_span': '3'},
+                        ],
+                    )
+                    strategy, value = locators['job_invocation.status']
+                    self.job.wait_until_element(
+                        (strategy, value % 'succeeded'), 240)
 
     @stubbed
-    @tier3
-    def test_positive_run_job_multiple_hosts_concurrency(self):
-        """Run job against multiple hosts with concurrency-level
-
-        :id: 3edac3dc-8229-4ee0-bd0c-82aa1544966c
-
-        :Steps:
-
-            1. Navigate to the hosts page and select at least two hosts
-            2. Click the "Select Action"
-            3. Select the job and appropriate template
-            4. Click "Display advanced fields" and set "Concurrency level"
-            5. Run the job
-
-        :expectedresults:
-
-            1. Verify the number of running concurrent tasks does comply
-                with the concurrency-level setting
-
-        """
-        # currently it is not possible to get subtasks from
-        # a task other than via UI
-
-    @stubbed()
     @tier3
     def test_positive_run_job_against_provisioned_rhel6_host(self):
         """Run a job against a single provisioned RHEL 6 host
@@ -920,7 +986,7 @@ class RemoteExecutionTestCase(UITestCase):
         :CaseLevel: System
         """
 
-    @stubbed()
+    @stubbed
     @tier3
     def test_positive_run_job_against_provisioned_rhel7_host(self):
         """Run a job against a single provisioned RHEL 7 host
@@ -946,7 +1012,7 @@ class RemoteExecutionTestCase(UITestCase):
         :CaseLevel: System
         """
 
-    @stubbed()
+    @stubbed
     @tier3
     def test_positive_run_job_against_multiple_provisioned_hosts(self):
         """Run a job against multiple provisioned hosts

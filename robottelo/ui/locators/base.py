@@ -204,6 +204,10 @@ locators = LocatorDict({
     "job_invocation.query": (
         By.XPATH, "//textarea[@id='targeting_search_query']"),
     "job_invocation.command": (By.XPATH, "//textarea[@id='command']"),
+    "job_invocation.effective_user": (
+            By.XPATH, "//input[contains(@id, '_effective_user']"),
+    "job_invocation.advanced_fields": (
+            By.XPATH, "//a[@class='advanced_fields_switch']"),
     "job_invocation.errata": (By.XPATH, "//textarea[@id='errata']"),
     "job_invocation.package": (By.XPATH, "//textarea[@id='package']"),
     "job_invocation.puppet_options": (
@@ -212,6 +216,10 @@ locators = LocatorDict({
     "job_invocation.action": (
         By.XPATH,
         "//div[contains(@id, 'action')]/a/span[contains(@class, 'arrow')]"),
+    "job_invocation.concurrency_level": (
+        By.XPATH, "//input[@id='job_invocation_concurrency_level]"),
+    "job_invocation.time_span": (
+        By.XPATH, "//input[@id='job_invocation_time_span]"),
     "job_invocation.schedule_type": (
         By.XPATH,
         "//input[contains(@id, 'triggering_mode') and @value='%s']"),
@@ -239,7 +247,15 @@ locators = LocatorDict({
     "job_invocation.status": (
         By.XPATH, "//div[@id='status' and @data-title='%s']"),
 
+    # Recurring Logics
+
+    "recurring_logic.select": (
+        By.XPATH,
+        ("//a[contains(@href, 'recurring_logics')"
+            "and normalize-space(.)='%s']")),
+
     # Tasks
+
     "task.page_title": (By.XPATH, "//h1[text()='Tasks']"),
     "task.select_name": (By.XPATH, '//span[contains(., "%s")]/parent::a'),
     "task.selected.id": (
