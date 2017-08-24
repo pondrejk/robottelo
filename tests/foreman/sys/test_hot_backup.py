@@ -67,8 +67,8 @@ class HotBackupTestCase(TestCase):
     def setUpClass(cls):
         """Create an organization and product which can be re-used in tests."""
         super(HotBackupTestCase, cls).setUpClass()
-        cls.org = entities.Organization().create()
-        cls.product = entities.Product(organization=cls.org).create()
+        #cls.org = entities.Organization().create()
+        #cls.product = entities.Product(organization=cls.org).create()
 
     def check_services_status(self, max_attempts=5):
         for _ in range(max_attempts):
