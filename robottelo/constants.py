@@ -2124,22 +2124,17 @@ BACKUP_FILES = [
     u'metadata.yml',
     u'mongo_data.tar.gz',
     u'.mongo.snar',
-    u'pgsql_data.tar.gz',
-    u'.postgres.snar',
     u'pulp_data.tar',
     u'.pulp.snar',
 ]
 
 HOT_BACKUP_FILES = [
-    u'candlepin.dump',
     u'config_files.tar.gz',
     u'.config.snar',
-    u'foreman.dump',
     u'metadata.yml',
     u'mongo_dump',
     u'pulp_data.tar',
     u'.pulp.snar',
-    u'pg_globals.dump',
 ]
 
 VMWARE_CONSTANTS = {

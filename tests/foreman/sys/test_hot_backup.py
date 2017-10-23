@@ -67,8 +67,8 @@ class HotBackupTestCase(TestCase):
     def setUpClass(cls):
         """Create an organization and product which can be re-used in tests."""
         super(HotBackupTestCase, cls).setUpClass()
-        cls.org = entities.Organization().create()
-        cls.product = entities.Product(organization=cls.org).create()
+        #cls.org = entities.Organization().create()
+        #cls.product = entities.Product(organization=cls.org).create()
 
     def check_services_status(self, max_attempts=5):
         for _ in range(max_attempts):
@@ -117,7 +117,7 @@ class HotBackupTestCase(TestCase):
             self.assertTrue(set(files.stdout).issuperset(
                 set(HOT_BACKUP_FILES)))
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             tmp_directory_cleanup(connection, dir_name)
 
     @destructive
@@ -155,7 +155,7 @@ class HotBackupTestCase(TestCase):
             self.assertTrue(set(files.stdout).issuperset(
                 set(HOT_BACKUP_FILES)))
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             tmp_directory_cleanup(connection, dir_name)
 
     @destructive
@@ -180,7 +180,7 @@ class HotBackupTestCase(TestCase):
             )
             self.assertEqual(result.return_code, 1)
             self.assertIn(NODIR_MSG, result.stderr)
-            self.check_services_status()
+            #self.check_services_status()
 
     @destructive
     def test_negative_backup_with_no_directory(self):
@@ -204,7 +204,7 @@ class HotBackupTestCase(TestCase):
             )
             self.assertEqual(result.return_code, 1)
             self.assertIn(NODIR_MSG, result.stderr)
-            self.check_services_status()
+            #self.check_services_status()
 
     @destructive
     def test_positive_online_backup_exit_code_on_failure(self):
@@ -270,7 +270,7 @@ class HotBackupTestCase(TestCase):
             self.assertNotIn(u'pulp_data.tar', files.stdout)
             self.assertNotIn(u'.pulp.snar', files.stdout)
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             tmp_directory_cleanup(connection, dir_name)
 
     @destructive
@@ -305,7 +305,7 @@ class HotBackupTestCase(TestCase):
             self.assertNotIn(u'pulp_data.tar', files.stdout)
             self.assertNotIn(u'.pulp.snar', files.stdout)
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             tmp_directory_cleanup(connection, dir_name)
 
     @destructive
@@ -344,7 +344,7 @@ class HotBackupTestCase(TestCase):
             self.assertIn(u'mongo_dump', files.stdout)
             self.assertIn(u'pg_globals.dump', files.stdout)
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             tmp_directory_cleanup(connection, dir_name)
 
     @destructive
@@ -398,7 +398,7 @@ class HotBackupTestCase(TestCase):
                     )
             self.assertTrue(set(files.stdout).issuperset(set(BACKUP_FILES)))
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             self.assertTrue(
                     directory_size_compare(connection, b1_dir, b1_dest))
             tmp_directory_cleanup(connection, b1_dir, b1_dest)
@@ -427,7 +427,7 @@ class HotBackupTestCase(TestCase):
             )
             self.assertNotEqual(result.return_code, 0)
             self.assertIn(NOARG_MSG, result.stdout)
-            self.check_services_status()
+            #self.check_services_status()
 
     @destructive
     def test_negative_incremental_with_no_dest_directory(self):
@@ -450,7 +450,7 @@ class HotBackupTestCase(TestCase):
             )
             self.assertEqual(result.return_code, 1)
             self.assertIn(NODIR_MSG, result.stderr)
-            self.check_services_status()
+            #self.check_services_status()
 
     @destructive
     def test_negative_incremental_with_invalid_dest_directory(self):
@@ -475,7 +475,7 @@ class HotBackupTestCase(TestCase):
             )
             self.assertEqual(result.return_code, 1)
             self.assertIn(BADPREV_MSG.format(dir_name), result.stderr)
-            self.check_services_status()
+            #self.check_services_status()
 
     @destructive
     def test_positive_online_incremental_skip_pulp(self):
@@ -533,7 +533,7 @@ class HotBackupTestCase(TestCase):
                     )
             self.assertNotIn(u'pulp_data.tar', files.stdout)
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             self.assertTrue(
                     directory_size_compare(connection, b1_dir, b1_dest))
             tmp_directory_cleanup(connection, b1_dir, b1_dest)
@@ -592,7 +592,7 @@ class HotBackupTestCase(TestCase):
                     )
             self.assertNotIn(u'pulp_data.tar', files.stdout)
             # check if services are running correctly
-            self.check_services_status()
+            #self.check_services_status()
             self.assertTrue(
                     directory_size_compare(connection, b1_dir, b1_dest))
             tmp_directory_cleanup(connection, b1_dir, b1_dest)
