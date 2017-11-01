@@ -332,6 +332,7 @@ class EndToEndTestCase(CLITestCase, ClientProvisioningMixin):
                 })
 
         # step 2.15.1: Enable product content
+        """
         if self.fake_manifest_is_set:
             ActivationKey.with_user(
                 user['login'],
@@ -343,6 +344,7 @@ class EndToEndTestCase(CLITestCase, ClientProvisioningMixin):
                 u'value': '1',
             })
 
+        """
         # BONUS: Create a content host and associate it with promoted
         # content view and last lifecycle where it exists
         content_host_name = gen_alphanumeric()
@@ -355,23 +357,18 @@ class EndToEndTestCase(CLITestCase, ClientProvisioningMixin):
             u'name': content_host_name,
             u'organization-id': org['id'],
         })
-        if bz_bug_is_open(1328202):
-            results = ContentHost.with_user(
-                user['login'],
-                user['password']
-            ).list({
-                'organization-id': org['id']
-            })
-            # Content host registration converts the name to lowercase, make
-            # sure to use the same format while matching against the result
-            content_host_name = content_host_name.lower()
-            for result in results:
-                if result['name'] == content_host_name:
-                    content_host = result
-        content_host = ContentHost.with_user(
+        results = ContentHost.with_user(
             user['login'],
             user['password']
-        ).info({'id': content_host['id']})
+        ).list({
+            'organization-id': org['id']
+        })
+        # Content host registration converts the name to lowercase, make
+        # sure to use the same format while matching against the result
+        content_host_name = content_host_name.lower()
+        for result in results:
+            if result['name'] == content_host_name:
+                content_host = result
         # check that content view matches what we passed
         self.assertEqual(
             content_host['content-view'],
