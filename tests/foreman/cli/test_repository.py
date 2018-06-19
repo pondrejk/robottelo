@@ -2304,6 +2304,86 @@ class GitPuppetMirrorTestCase(CLITestCase):
 
 class FileRepositoryTestCase(CLITestCase):
     """Specific tests for File Repositories"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a product and an org which can be re-used in tests."""
+        super(FileRepositoryTestCase, cls).setUpClass()
+        cls.org = make_org()
+        cls.product = make_product({'organization-id': cls.org['id']})
+        # Create test directory with two files and one symlink
+        cls.file_dir = gen_string('alpha')
+        cls.file_1 = gen_string('alpha')
+        cls.file_2 = gen_string('alpha')
+        cls.file_3 = gen_string('alpha')
+        with ssh.get_connection() as connection:
+            connection.run('mkdir /tmp/{}'.format(cls.file_dir))
+            connection.run('touch /tmp/{0}/{1}'.format(
+                           cls.file_dir, cls.file_1))
+            connection.run('touch /tmp/{0}/{1}'.format(
+                           cls.file_dir, cls.file_2))
+            connection.run('touch /tmp/{0}'.format(cls.file_3))
+            connection.run('ln -s /tmp/{1} /tmp/{0}/{1}'.format(
+                           cls.file_dir, cls.file_3))
+
+
+    @tier2
+    def test_positive_file_repo_local_path(self):
+        """Create and synchronize file repo from a local path
+
+        :id:
+
+        :Steps:
+            1. Create a File Repository
+            2. Upload a custom directory
+            3. Synchronize repository
+            4. Check file count, permissions and symlinks
+            5. Remove a file and resynchronize
+            6. Check repo content got updated
+
+        :expectedresults: uploaded files are available under File Repository
+
+        :CaseAutomation: notautomated
+        """
+        repo = make_repository({
+            'product-id': self.product['id'],
+            'content-type': 'file',
+            'url': '',
+            'name': gen_string('alpha'),
+        })
+        result = Repository.upload_content({
+            'name': repo['name'],
+            'organization': repo['organization'],
+            'path': "/tmp/{0}".format(self.file_dir),
+            'product-id': repo['product']['id'],
+        })
+        messages = ' '.join([d['message'] for d in result])
+        for file in [self.file_1, self.file_2, self.file_3]:
+            self.assertIn(
+                "Successfully uploaded file '{0}'".format(file), messages)
+
+        #Repository.synchronize({'id': repo['id']})
+        repo = Repository.info({'id': repo['id']})
+        print("######")
+        print(repo)
+        #self.assertEqual(repo['content-counts']['puppet-modules'], '0')
+
+    @stubbed()
+    @tier2
+    def test_positive_file_repo_remote_path(self):
+        """
+
+        :id:
+
+        :Steps:
+            1. Create a File Repository
+            2. Upload an arbitrary file to it
+
+        :expectedresults: uploaded file is available under File Repository
+
+        :CaseAutomation: notautomated
+        """
+
     @stubbed()
     @tier1
     def test_positive_upload_file_to_file_repo(self):
