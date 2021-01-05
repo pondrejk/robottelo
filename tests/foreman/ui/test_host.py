@@ -27,19 +27,25 @@ from nailgun import entities
 from wait_for import wait_for
 from widgetastic.exceptions import NoSuchElementException
 from wrapanapi import GoogleCloudSystem
+from fauxfactory import gen_alpha
 
 from robottelo import ssh
+from robottelo import manifests
 from robottelo.api.utils import call_entity_method_with_timeout
 from robottelo.api.utils import create_role_permissions
 from robottelo.api.utils import promote
 from robottelo.api.utils import publish_puppet_module
 from robottelo.api.utils import skip_yum_update_during_provisioning
+from robottelo.api.utils import upload_manifest
 from robottelo.cli.contentview import ContentView
+from robottelo.cli.factory import make_activation_key
 from robottelo.cli.factory import make_content_view
 from robottelo.cli.factory import make_host
 from robottelo.cli.factory import make_hostgroup
 from robottelo.cli.factory import make_lifecycle_environment
+from robottelo.cli.factory import make_job_invocation
 from robottelo.cli.factory import make_scap_policy
+from robottelo.cli.host import Host
 from robottelo.cli.proxy import Proxy
 from robottelo.cli.scap_policy import Scappolicy
 from robottelo.cli.scapcontent import Scapcontent
@@ -48,6 +54,7 @@ from robottelo.constants import ANY_CONTEXT
 from robottelo.constants import DEFAULT_ARCHITECTURE
 from robottelo.constants import DEFAULT_CV
 from robottelo.constants import DEFAULT_PTABLE
+from robottelo.constants import DEFAULT_SUBSCRIPTION_NAME
 from robottelo.constants import ENVIRONMENT
 from robottelo.constants import FOREMAN_PROVIDERS
 from robottelo.constants import OSCAP_PERIOD
@@ -60,7 +67,7 @@ from robottelo.datafactory import gen_string
 from robottelo.decorators import skip_if_not_set
 from robottelo.helpers import download_server_file
 from robottelo.ui.utils import create_fake_host
-
+from robottelo.vm import VirtualMachine
 
 def _get_set_from_list_of_dict(value):
     """Returns a set of tuples representation of each dict sorted by keys
@@ -370,6 +377,37 @@ def module_libvirt_hostgroup(
         ptable=default_partition_table,
         medium=module_libvirt_media,
     ).create()
+
+
+@pytest.fixture(scope='module')
+def manifest_org(module_org):
+    """Upload manifest to organization."""
+    with manifests.clone() as manifest:
+        upload_manifest(module_org.id, manifest.content)
+    return module_org
+
+
+@pytest.fixture(scope='module')
+def module_activation_key(manifest_org):
+    """Create activation key using default CV and library environment."""
+    activation_key = entities.ActivationKey(
+        auto_attach=True,
+        content_view=manifest_org.default_content_view.id,
+        environment=manifest_org.library.id,
+        name=gen_alpha(),
+        organization=manifest_org,
+    ).create()
+
+    # Find the 'Red Hat Employee Subscription' and attach it to the activation key.
+    for subs in entities.Subscription(organization=manifest_org).search():
+        if subs.name == DEFAULT_SUBSCRIPTION_NAME:
+            # 'quantity' must be 1, not subscription['quantity']. Greater
+            # values produce this error: 'RuntimeError: Error: Only pools
+            # with multi-entitlement product subscriptions can be added to
+            # the activation key with a quantity greater than one.'
+            activation_key.add_subscriptions(data={'quantity': 1, 'subscription_id': subs.id})
+            break
+    return activation_key
 
 
 @pytest.mark.tier2
@@ -1287,6 +1325,90 @@ def test_positive_validate_inherited_cv_lce(session, module_host_template):
         values = session.host.read(host['name'], ['host.lce', 'host.content_view'])
         assert values['host']['lce'] == lce['name']
         assert values['host']['content_view'] == content_view['name']
+
+
+@pytest.mark.tier3
+def test_positive_global_registration_end_to_end(
+    session, module_activation_key, module_org, module_loc, module_os, module_proxy 
+):
+    """Host registration form produces a correct registration command and host is
+    registered successfully with it, remote execution and insights are set up
+
+    :id: a02658bf-097e-47a8-8472-5d9f649ba07a
+
+    :customerscenario: true
+
+    :expectedresults: Host is succesfully registered, remote execution and insights
+         client work out of the box
+
+    :CaseLevel: Integration
+    """
+    # rex interface
+    iface = 'eth0'
+    # fill in the global registration form
+    with session:
+        cmd = session.host.get_register_command(
+            {
+                'setup_insights': 'Yes',
+                'remote_execution': 'Yes',
+                'capsule': module_proxy,
+                'operating_system': module_os,
+                'activation_keys': module_activation_key,
+                'remote_execution_interface': iface,
+            }
+        )
+    expected_pairs = [
+        f'capusule={module_proxy}',
+        f'organization_id={module_org["id"]}',
+        f'activation_key={module_activation_key}',
+        f'location_id={module_loc["id"]}',
+        f'operatingsystem_id={module_os["id"]}',
+        f'remote_execution_interface={iface}',
+    ]
+    for pair in expected_pairs:
+        assert pair in cmd
+    cmd = cmd.replace('curl', 'curl -k')
+    # register host
+    with VirtualMachine(distro=DISTRO_RHEL7) as client:
+        result = ssh.command(cmd)
+        assert result.return_code == 0
+        self.assertTrue(client.subscribed)
+        result = ssh.command('subscription-manager repos --list')
+        assert module_repository in result.stdout
+        # set connecting to host via ip
+        Host.set_parameter(
+            {
+                'host': client.hostname,
+                'name': 'remote_execution_connect_by_ip',
+                'value': 'True',
+            }
+        )
+        # run insights-client via REX 
+        command = "insights-client --status"
+        invocation_command = make_job_invocation(
+            {
+                'job-template': 'Run Command - SSH Default',
+                'inputs': f'command={command}',
+                'search-query': f"name ~ {client.hostname}",
+            }
+        )
+        # TODO check interface?
+        try:
+            assert invocation_command['success'] == '1'
+            # TODO check for some output of the status command?
+            assert 'Insights API confirms registration' in invocation_command['stdout']
+        except AssertionError:
+            result = 'host output: {}'.format(
+                ' '.join(
+                    JobInvocation.get_output(
+                        {'id': invocation_command['id'], 'host': client.hostname}
+                    )
+                )
+            )
+            raise AssertionError(result)
+    # check if appears in UI
+    # check for rex task?
+    # check for the host in insights UI
 
 
 @pytest.mark.tier2

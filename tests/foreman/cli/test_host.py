@@ -69,6 +69,7 @@ from robottelo.config import settings
 from robottelo.constants import DEFAULT_CV
 from robottelo.constants import DEFAULT_SUBSCRIPTION_NAME
 from robottelo.constants import DISTRO_RHEL7
+from robottelo.constants import DISTRO_RHEL8
 from robottelo.constants import ENVIRONMENT
 from robottelo.constants import FAKE_0_CUSTOM_PACKAGE
 from robottelo.constants import FAKE_0_CUSTOM_PACKAGE_NAME
@@ -2292,6 +2293,22 @@ class HostSubscriptionTestCase(CLITestCase):
                     'host-id': host['id'],
                 }
             )
+
+    @pytest.mark.tier3
+    @pytest.mark.parametrize(
+        'os_distro',
+        **parametrized([{'name': name} for name in [DISTRO_RHEL7, DISTRO_RHEL8]),
+        indirect=True,
+    )
+    def test_positive_global_registration(self):
+        """Global registration on RHEL7 and 8 with inheritance from 
+           global parameters, no capsule
+        """
+        # with hosts 7/8 parmetrize
+        # set default param 
+        cmd = ''
+        with VirtualMachine(distro=os_distro.name) as client:
+
 
 
 class HostErrataTestCase(CLITestCase):
