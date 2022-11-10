@@ -140,15 +140,15 @@ def cockpit_host(class_target_sat, class_org, rhel_contenthost):
 
 
 @pytest.fixture
-def rex_contenthost(request, module_org, target_sat):
+def rex_contenthost(request, module_org, module_target_sat):
     request.param['no_containers'] = True
     with Broker(**host_conf(request), host_class=ContentHost) as host:
         # Register content host to Satellite and install katello-host-tools on the host
         repo = settings.repos['SATCLIENT_REPO'][f'RHEL{host.os_version.major}']
-        target_sat.register_host_custom_repo(module_org, host, [repo])
+        module_target_sat.register_host_custom_repo(module_org, host, [repo])
         host.install_katello_host_tools()
         # Enable remote execution on the host
-        host.add_rex_key(satellite=target_sat)
+        host.add_rex_key(satellite=module_target_sat)
         yield host
 
 

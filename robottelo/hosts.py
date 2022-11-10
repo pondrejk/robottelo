@@ -1707,9 +1707,7 @@ class Satellite(Capsule, SatelliteMixins):
         """
         # Create a new product, sync appropriate client and other passed repos on satellite
         rhelver = rhel_contenthost.os_version.major
-        prod = self.api.Product(
-            organization=module_org, name=f'rhel{rhelver}_{gen_string("alpha")}'
-        ).create()
+        prod = self.api.Product( organization=module_org, name=f'rhel{rhelver}_{gen_string("alpha")}').create()
         tasks = []
         for url in repo_urls:
             repo = self.api.Repository(
