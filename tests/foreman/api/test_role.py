@@ -1130,10 +1130,10 @@ class TestCannedRole:
             auth=(user_login, user_pass), url=target_sat.url, verify=settings.server.verify_ca
         )
         # Getting the domain from user1
-        dom = target_sat.api.Domain(server_config=sc, id=dom.id).read()
-        dom.organization = [filter_taxonomies['org']]
         with pytest.raises(HTTPError):
-            dom.update(['organization'])
+            target_sat.api.Domain(
+                server_config=sc, id=dom.id, organization=[filter_taxonomies['org']]
+            ).update(['organization'])
 
     @pytest.mark.tier1
     def test_positive_remove_org_admin_role(self, role_taxonomies, target_sat):
@@ -1329,7 +1329,12 @@ class TestCannedRole:
         test_role.organization = [role_taxonomies['org']]
         test_role.location = [role_taxonomies['loc']]
         with pytest.raises(HTTPError):
-            test_role.update(['organization', 'location'])
+            target_sat.api.Role(
+                server_config=sc,
+                id=test_role.id,
+                organization=[role_taxonomies['org']],
+                location=[role_taxonomies['loc']],
+            ).update(['organization', 'location'])
 
     @pytest.mark.tier2
     def test_negative_admin_permissions_to_org_admin(self, role_taxonomies, target_sat):
