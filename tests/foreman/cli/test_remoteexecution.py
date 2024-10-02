@@ -269,6 +269,85 @@ class TestRemoteExecution:
             )
 
     @pytest.mark.tier3
+    @pytest.mark.parametrize(
+        'multi_setting_update',
+        [
+            [
+                'remote_execution_effective_user',
+                'remote_execution_effective_user_password',
+                'remote_execution_effective_user_method',
+            ],
+        ],
+        ids=["sudo"],
+        indirect=True,
+    )
+    @pytest.mark.rhel_ver_list([9])
+    def test_positive_run_job_global_ssh_user(
+        self, rex_contenthost, module_target_sat, multi_setting_update
+    ):
+        """Run default job template with global effective user and sudo
+
+        :id: 0adaf5a2-930a-4050-863b-62456234ce8c
+
+        :verifies: SAT-28443
+
+        :expectedresults: Verify the job was successfully run under the
+            effective user identity on host, make sure the password is
+            used
+
+        :parametrized: yes
+        """
+        client = rex_contenthost
+        # create a user on client via remote job
+        ssh_username = gen_string('alpha')
+        ssh_password = gen_string('alpha')
+        username = gen_string('alpha')
+        password = gen_string('cjk')
+        filename = gen_string('alpha')
+        multi_setting_update[0].value = username
+        multi_setting_update[1].value = password
+        multi_setting_update[2].value = 'sudo'
+        for setting in multi_setting_update:
+            setting.update({'value'})
+
+        make_user_job = module_target_sat.cli_factory.job_invocation(
+            {
+                'job-template': 'Run Command - Script Default',
+                'inputs': f"command=useradd {ssh_username} -G wheel; echo {ssh_username}:{ssh_password} | chpasswd; useradd {username} -G wheel; echo {username}:{password} | chpasswd",
+                'search-query': f"name ~ {client.hostname}",
+                'effective-user': 'root',
+                'description-format': 'adding users',
+            }
+        )
+        client.execute('echo "Defaults targetpw" >> /etc/sudoers')
+        assert_job_invocation_result(module_target_sat, make_user_job['id'], client.hostname)
+        # create a file as new user
+        invocation_command = module_target_sat.cli_factory.job_invocation(
+            {
+                'job-template': 'Run Command - Script Default',
+                'inputs': f"command=touch /home/{username}/{filename}",
+                'search-query': f"name ~ {client.hostname}",
+                'ssh-user': f'{ssh_username}',
+                'password': f'{ssh_password}',
+                #'effective-user': f'{username}',
+                #'effective-user-password': f'{password}',
+            }
+        )
+        __import__('pdb').set_trace()
+        assert_job_invocation_result(module_target_sat, invocation_command['id'], client.hostname)
+        # check the file owner
+        result = client.execute(
+            f'''stat -c '%U' /home/{username}/{filename}''',
+        )
+        # assert the file is owned by the effective user
+        assert username == result.stdout.strip('\n')
+        result = client.execute(
+            f'''stat -c '%G' /home/{username}/{filename}''',
+        )
+        # assert the file is in the effective user's group
+        assert username == result.stdout.strip('\n')
+
+    @pytest.mark.tier3
     @pytest.mark.e2e
     @pytest.mark.rhel_ver_match('[^6].*')
     def test_positive_run_custom_job_template(self, rex_contenthost, module_org, target_sat):
