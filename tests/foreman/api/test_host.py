@@ -24,7 +24,7 @@ from nailgun import client
 import pytest
 from requests.exceptions import HTTPError
 
-from robottelo.config import get_credentials
+from robottelo.config import get_credentials, settings
 from robottelo.constants import DEFAULT_CV, DUMMY_BOOTC_FACTS, ENVIRONMENT
 from robottelo.utils import datafactory
 
@@ -1072,6 +1072,36 @@ def test_positive_bootc_api_actions(target_sat, bootc_host, function_ak_with_cv,
         == bootc_dummy_info['bootc.booted.digest']
     )
     assert bootc_image_info['digests'][0]['host_count'] > 0
+
+
+@pytest.mark.no_containers
+def test_positive_rhel_ai(target_sat, bootc_host, function_ak_with_cv, function_org):
+    """Register a bootc host and rebase it to rhel AI
+
+    :id: 189ac143-e41e-44b2-9093-0815d6eef3ac
+
+    :expectedresults: TODO
+
+    :CaseComponent: Hosts-Content
+
+    """
+    assert bootc_host.register(function_org, None, function_ak_with_cv.name, target_sat).status == 0
+    assert bootc_host.subscribed
+    # Testing bootc info from content_facet_attributes
+    bootc_host = target_sat.api.Host().search(query={'search': f'name={bootc_host.hostname}'})[0]
+    iop_settings = settings.rh_cloud.iop_advisor_engine
+    # rebase to rhelai
+    # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_ai/1.4/html/updating/updating_system
+    result = bootc_host.execute(
+        f'podman login -u {iop_settings.username!r} -p {iop_settings.token!r} {iop_settings.registry} --authfile /etc/ostree/auth.json'
+    )
+    assert result.status == 0, f'Error logging in to container registry: {result.stdout}'
+    result = bootc_host.execute('bootc switch registry.redhat.io/rhelai1/bootc-nvidia-rhel9:1.4')
+    assert result.status == 0, 'failed to rebase'
+    result = bootc_host.execute('reboot')
+    assert bootc_host.register(function_org, None, function_ak_with_cv.name, target_sat).status == 0
+    assert bootc_host.subscribed
+    assert int(target_sat.get_reported_value('rhel_ai_workload_host_count')) > 0
 
 
 @pytest.mark.stubbed
