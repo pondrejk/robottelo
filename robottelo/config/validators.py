@@ -260,6 +260,16 @@ VALIDATORS = dict(
             must_exist=True,
         ),
     ],
+    mcp=[
+        Validator(
+            'mcp.hostname',
+            'mcp.username',
+            'mcp.password',
+            'mcp.port',
+            'mcp.registry',
+            must_exist=True,
+        ),
+    ],
     ohsnap=[
         Validator(
             'ohsnap.host',

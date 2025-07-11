@@ -1,0 +1,7 @@
+# For MCP server
+MCP:
+  HOSTNAME:
+  USERNAME:
+  PASSWORD:
+  PORT:
+  REGISTRY:
