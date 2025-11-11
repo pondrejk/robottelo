@@ -57,6 +57,7 @@ def _setup_mcp_server(target_sat, settings_obj, is_downstream=False, tag='latest
     )
     assert target_sat.execute('firewall-cmd --reload').status == 0
     target_sat.ensure_podman_installed()
+    ca_mountpoint = '/app/ca.pem'
     if is_downstream:
         target_sat.podman_login(
             settings_obj.registry_stage_username,
@@ -64,10 +65,8 @@ def _setup_mcp_server(target_sat, settings_obj, is_downstream=False, tag='latest
             settings_obj.registry_stage,
         )
         registry = settings_obj.registry_stage
-        ca_mountpoint = '/opt/app-root/src/ca.pem'
     else:
         registry = settings_obj.registry
-        ca_mountpoint = '/app/ca.pem'
     if not target_sat.network_type.has_ipv4:
         target_sat.execute('podman network create --ipv6 ipv6')
 
