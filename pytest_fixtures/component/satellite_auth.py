@@ -13,6 +13,7 @@ from robottelo.constants import (
     HAMMER_SESSIONS,
     LDAP_ATTR,
     LDAP_SERVER_TYPE,
+    LOGIN_DELEGATION_LOGOUT_URL,
 )
 from robottelo.hosts import IPAHost, RHBKHost, RHSSOHost
 from robottelo.logging import logger
@@ -405,7 +406,7 @@ def rhsso_setting_setup(request, module_target_sat):
     rhhso_settings = {
         'authorize_login_delegation': True,
         'authorize_login_delegation_auth_source_user_autocreate': 'External',
-        'login_delegation_logout_url': f'https://{module_target_sat.hostname}/users/extlogout',
+        'login_delegation_logout_url': LOGIN_DELEGATION_LOGOUT_URL,
         'oidc_algorithm': 'RS256',
         'oidc_audience': [f'{module_target_sat.hostname}-foreman-openidc'],
         'oidc_issuer': f'{uri}/auth/realms/{realm}',

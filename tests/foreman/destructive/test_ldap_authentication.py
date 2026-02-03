@@ -20,7 +20,13 @@ import pyotp
 import pytest
 
 from robottelo.config import settings
-from robottelo.constants import CERT_PATH, HAMMER_CONFIG, HAMMER_SESSIONS, LDAP_ATTR
+from robottelo.constants import (
+    CERT_PATH,
+    HAMMER_CONFIG,
+    HAMMER_SESSIONS,
+    LDAP_ATTR,
+    LOGIN_DELEGATION_LOGOUT_URL,
+)
 from robottelo.exceptions import CLIReturnCodeError
 from robottelo.logging import logger
 from robottelo.utils.datafactory import gen_string
@@ -265,6 +271,8 @@ def test_single_sign_on_using_rhsso(
 
     :setup: Enroll the RH-SSO Configuration for External Authentication
 
+    :verifies: SAT-40322
+
     :steps:
         1. Create Mappers on RHSSO Instance and Update the Settings in Satellite
         2. Login into Satellite using RHSSO login page redirected by Satellite
@@ -280,6 +288,9 @@ def test_single_sign_on_using_rhsso(
             session.user.search('')
         actual_user = session.task.read_all(widget_names="current_user")['current_user']
         assert settings.rhsso.rhsso_user in actual_user
+        # logout verification for SAT-40322
+        session.rhsso_login.logout()
+        assert session.browser.url == LOGIN_DELEGATION_LOGOUT_URL, "Unsuccessful logout redirect"
 
 
 def test_external_logout_rhsso(rhsso_setting_setup, enable_external_auth_rhsso, module_target_sat):
