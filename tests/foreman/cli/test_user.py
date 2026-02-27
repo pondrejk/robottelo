@@ -413,7 +413,9 @@ class TestPersonalAccessToken:
         command_output = target_sat.execute(curl_command)
         assert f'Unable to authenticate user {user["login"]}' in command_output.stdout
 
-    def test_positive_personal_access_token_user_with_role(self, target_sat):
+    def test_positive_personal_access_token_user_with_role(
+        self, target_sat, module_org, module_location
+    ):
         """Personal access token for user with a role
 
         :id: b9fe7ddd-d1e4-4d76-9966-d223b02768ec
@@ -432,7 +434,9 @@ class TestPersonalAccessToken:
 
         :CaseImportance: High
         """
-        user = target_sat.cli_factory.user()
+        user = target_sat.cli_factory.user(
+            {'organization-id': module_org.id, 'location-id': module_location.id}
+        )
         target_sat.cli.User.add_role({'login': user['login'], 'role': 'Viewer'})
         token_name = gen_alphanumeric()
         result = target_sat.cli.User.access_token(
@@ -449,7 +453,7 @@ class TestPersonalAccessToken:
         )
         assert 'Access denied' in command_output.stdout
 
-    def test_expired_personal_access_token(self, target_sat):
+    def test_expired_personal_access_token(self, target_sat, module_org, module_location):
         """Personal access token expired for the user.
 
         :id: cb07b096-aba4-4a95-9a15-5413f32b597b
@@ -463,7 +467,9 @@ class TestPersonalAccessToken:
 
         :CaseImportance: Medium
         """
-        user = target_sat.cli_factory.user()
+        user = target_sat.cli_factory.user(
+            {'organization-id': module_org.id, 'location-id': module_location.id}
+        )
         target_sat.cli.User.add_role({'login': user['login'], 'role': 'Viewer'})
         token_name = gen_alphanumeric()
         datetime_now = datetime.datetime.now(datetime.UTC)
@@ -485,7 +491,7 @@ class TestPersonalAccessToken:
         )
         assert f'Unable to authenticate user {user["login"]}' in command_output.stdout
 
-    def test_custom_personal_access_token_role(self, target_sat):
+    def test_custom_personal_access_token_role(self, target_sat, module_org, module_location):
         """Personal access token for non admin user with custom role
 
         :id: dcbd22df-2641-4d3e-a1ad-76f36642e31b
@@ -502,7 +508,9 @@ class TestPersonalAccessToken:
 
         :BZ: 1974685, 1996048
         """
-        role = target_sat.cli_factory.make_role()
+        role = target_sat.cli_factory.make_role(
+            {'organization-id': module_org.id, 'location-id': module_location.id}
+        )
         permissions = [
             permission['name']
             for permission in target_sat.cli.Filter.available_permissions(
@@ -512,7 +520,9 @@ class TestPersonalAccessToken:
         permissions = ','.join(permissions)
         target_sat.cli_factory.make_filter({'role-id': role['id'], 'permissions': permissions})
         target_sat.cli_factory.make_filter({'role-id': role['id'], 'permissions': 'view_users'})
-        user = target_sat.cli_factory.user()
+        user = target_sat.cli_factory.user(
+            {'organization-id': module_org.id, 'location-id': module_location.id}
+        )
         target_sat.cli.User.add_role({'login': user['login'], 'role': role['name']})
         token_name = gen_alphanumeric()
         result = target_sat.cli.User.access_token(
