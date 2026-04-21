@@ -22172,6 +22172,12 @@
               "value": "SCHEMA"
             },
             {
+              "help": "UUID of a VM to import from a compute resource",
+              "name": "uuid",
+              "shortname": null,
+              "value": "VALUE"
+            },
+            {
               "help": "Volume parameters Can be specified multiple times.",
               "name": "volume",
               "shortname": null,
@@ -25460,6 +25466,12 @@
               "name": "typed-parameters",
               "shortname": null,
               "value": "SCHEMA"
+            },
+            {
+              "help": "UUID of a VM to import from a compute resource",
+              "name": "uuid",
+              "shortname": null,
+              "value": "VALUE"
             },
             {
               "help": "Volume parameters Can be specified multiple times.",
