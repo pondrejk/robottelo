@@ -1961,7 +1961,9 @@ class Capsule(ContentHost, CapsuleMixins):
         self.enable_satellite_or_capsule_module_for_rhel8()
         assert self.execute(f'dnf -y install {self.product_rpm_name}').status == 0
 
-    def install_satellite_foremanctl(self, enable_fapolicyd=False, enable_fips=False):
+    def install_satellite_foremanctl(
+        self, enable_fapolicyd=False, enable_fips=False, parameters=None
+    ):
         # Add IPv6 proxy for IPv6 communication
         self.enable_ipv6_dnf_and_rhsm_proxy()
         self.enable_ipv6_system_proxy()
@@ -1997,14 +1999,26 @@ class Capsule(ContentHost, CapsuleMixins):
             ).status
             == 0
         )
+
         # Install Satellite and return result
+
+        default_parameters = [
+            f'--foreman-initial-admin-username {settings.server.admin_username}',
+            f'--foreman-initial-admin-password {settings.server.admin_password}',
+        ]
+
+        parameters = [] if parameters is None else parameters
+        if parameters:
+            default_parameters.extend(parameters)
+
         assert (
             self.execute(
-                f'foremanctl deploy --foreman-initial-admin-username {settings.server.admin_username} --foreman-initial-admin-password {settings.server.admin_password}',
+                f'foremanctl deploy {" ".join(default_parameters)}',
                 timeout='30m',
             ).status
             == 0
         )
+
         assert (
             self.execute(
                 'foremanctl deploy --add-feature foreman-proxy --add-feature hammer'
@@ -2043,6 +2057,11 @@ class Capsule(ContentHost, CapsuleMixins):
 
         cmd = f'{base_cmd} -c "{query}"'
         return _execute_db_query(cmd).stdout
+
+    def load_remote_yaml_file(self, file_path):
+        """Load a remote yaml file and return a Box object"""
+        data = self.session.sftp_read(file_path, return_data=True)
+        return Box(yaml.load(data, yaml.FullLoader))
 
 
 class Satellite(Capsule, SatelliteMixins):
@@ -2335,11 +2354,6 @@ class Satellite(Capsule, SatelliteMixins):
         )
         install_cmd = InstallerCommand.from_cmd_str(cmd_str=result.stdout)
         return cert_file_path, result, install_cmd
-
-    def load_remote_yaml_file(self, file_path):
-        """Load a remote yaml file and return a Box object"""
-        data = self.session.sftp_read(file_path, return_data=True)
-        return Box(yaml.load(data, yaml.FullLoader))
 
     def __enter__(self):
         """Satellite objects can be used as a context manager to temporarily force everything

@@ -66,7 +66,7 @@ FOREMAN_PROVIDERS_MODEL = {
 
 EC2_REGION_CA_CENTRAL_1 = 'ca-central-1'
 
-CONTENT_CREDENTIALS_TYPES = {'gpg': 'GPG Key', 'ssl': 'SSL Certificate'}
+CONTENT_CREDENTIALS_TYPES = {'gpg': 'GPG Key', 'ssl': 'Certificate'}
 
 VIRT_WHO_HYPERVISOR_TYPES = {
     'esx': 'esx',
@@ -343,6 +343,8 @@ RECOMMENDED_REPOS = [
     'rhel-10-for-x86_64-appstream-rpms',
     'rhel-10-for-x86_64-baseos-eus-rpms',
     'rhel-10-for-x86_64-appstream-eus-rpms',
+    'rhel-10-for-x86_64-extensions-rpms',
+    'rhel-10-for-aarch64-extensions-rpms',
     'rhel-9-for-x86_64-baseos-rpms',
     'rhel-9-for-x86_64-appstream-rpms',
     'rhel-9-for-x86_64-baseos-eus-rpms',
@@ -977,6 +979,8 @@ FAKE_9_YUM_UPDATED_PACKAGES = [
 ]
 REAL_RHEL9_OUTDATED_PACKAGE_FILENAME = 'python3-gofer-2.12.5-7.1.el9sat.noarch'
 REAL_RHEL9_PACKAGE = 'python3-gofer'
+REAL_RHEL10_OUTDATED_PACKAGE_FILENAME = 'katello-host-tools-4.4.0-1.el10sat.noarch'
+REAL_RHEL10_PACKAGE = 'katello-host-tools'
 REAL_0_ERRATA_ID = 'RHBA-2021:1314'  # for rhst7 (update every GA day)
 REAL_1_ERRATA_ID = 'RHBA-2012:1076'  # for REAL_0_RH_PACKAGE
 REAL_2_ERRATA_ID = 'RHBA-2012:0707'  # for REAL_0_RH_PACKAGE
@@ -990,9 +994,11 @@ REAL_RHEL8_1_ERRATA_ID = 'RHSA-2022:4867'  # for REAL_RHEL8_1_PACKAGE
 REAL_RHEL8_ERRATA_CVES = ['CVE-2021-27023', 'CVE-2021-27025']
 REAL_RHSCLIENT_ERRATA = 'RHSA-2023:5982'  # for RH Satellite Client 8
 REAL_RHEL9_ERRATA_ID = 'RHBA-2022:7243'
+REAL_RHEL10_ERRATA_ID = 'RHBA-2025:10812'
 # Vulnerability testing constants for RHEL 10
 RHEL10_VULNERABLE_MARIADB_RPM = 'mariadb-3:10.11.11-1.el10.x86_64'
 RHEL10_VULNERABLE_MARIADB_CVES = ['CVE-2023-52969', 'CVE-2023-52970', 'CVE-2023-52971']
+RHEL10_MARIADB_ERRATUM = 'RHSA-2026:0136'
 # Use the first CVE as the primary one for single-CVE tests
 RHEL10_VULNERABILITY_CVE_ID = RHEL10_VULNERABLE_MARIADB_CVES[0]
 FAKE_1_YUM_REPOS_COUNT = 32
@@ -1258,6 +1264,35 @@ PERMISSIONS = {
         'edit_filters',
         'destroy_filters',
     ],
+    'ForemanAnsibleDirector::AnsibleContentAssignment': [
+        'create_ansible_assignments',
+        'destroy_ansible_assignments',
+        'view_ansible_assignments',
+    ],
+    'ForemanAnsibleDirector::ContentUnit': [
+        'create_ansible_content',
+        'destroy_ansible_content',
+        'view_ansible_content',
+    ],
+    'ForemanAnsibleDirector::ExecutionEnvironment': [
+        'create_ansible_execution_environments',
+        'destroy_ansible_execution_environments',
+        'edit_ansible_execution_environments',
+        'view_ansible_execution_environments',
+    ],
+    'ForemanAnsibleDirector::LifecycleEnvironment': [
+        'create_ansible_lifecycle_environments',
+        'destroy_ansible_lifecycle_environments',
+        'edit_ansible_lifecycle_environments',
+        'view_ansible_lifecycle_environments',
+    ],
+    'ForemanAnsibleDirector::LifecycleEnvironmentPath': [
+        'create_ansible_lifecycle_environment_paths',
+        'destroy_ansible_lifecycle_environment_paths',
+        'edit_ansible_lifecycle_environment_paths',
+        'promote_ansible_lifecycle_environment_paths',
+        'view_ansible_lifecycle_environment_paths',
+    ],
     'ForemanResourceQuota::ResourceQuota': [
         "destroy_resource_quotas",
         "create_resource_quotas",
@@ -1415,6 +1450,10 @@ PERMISSIONS = {
         'create_lookup_values',
         'destroy_lookup_values',
         'view_lookup_values',
+        'destroy_ansible_variable_overrides',
+        'edit_ansible_variable_overrides',
+        'create_ansible_variable_overrides',
+        'view_ansible_variable_overrides',
     ],
     'MailNotification': ['view_mail_notifications', 'edit_user_mail_notifications'],
     'Medium': ['view_media', 'create_media', 'edit_media', 'destroy_media'],
@@ -2065,6 +2104,7 @@ SATELLITE_INSTALLER_CONFIG = '/etc/foreman-installer/scenarios.d/satellite.yaml'
 CAPSULE_INSTALLER_CONFIG = '/etc/foreman-installer/scenarios.d/capsule.yaml'
 SATELLITE_ANSWER_FILE = "/etc/foreman-installer/scenarios.d/satellite-answers.yaml"
 CAPSULE_ANSWER_FILE = "/etc/foreman-installer/scenarios.d/capsule-answers.yaml"
+CONTAINER_GATEWAY_SETTINGS = "/etc/foreman-proxy/settings.d/container_gateway.yml"
 MAINTAIN_HAMMER_YML = "/etc/foreman-maintain/foreman-maintain-hammer.yml"
 SATELLITE_MAINTAIN_YML = "/etc/foreman-maintain/foreman_maintain.yml"
 FOREMAN_SETTINGS_YML = '/etc/foreman/settings.yaml'
@@ -2243,6 +2283,7 @@ FOREMAN_ANSIBLE_MODULES = [
     "smart_class_parameter",
     "smart_class_parameter_override_value",
     "smart_proxy",
+    "smart_proxy_refresh",
     "status_info",
     "subnet_info",
     "subnet",
@@ -2359,6 +2400,7 @@ FAM_TEST_PLAYBOOKS = [
     "smart_class_parameter_override_value",
     "smart_class_parameter",
     "smart_proxy",
+    "smart_proxy_refresh",
     "status_info",
     "subnet_info",
     "subnets_role",
@@ -2492,6 +2534,8 @@ DUMMY_BOOTC_FACTS = """{
   "bootc.available.version": null,
   "bootc.available.digest": null
 }"""
+
+FOREMANCTL_PARAMETERS_FILE = '/var/lib/foremanctl/parameters.yaml'
 
 
 # Data File Paths
